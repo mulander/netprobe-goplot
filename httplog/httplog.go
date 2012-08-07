@@ -10,10 +10,10 @@ type Logger struct {
 }
 
 // Creates a new Logger
-func New(logfile string) (*Logger, os.Error) {
+func New(logfile string) (*Logger, error) {
 	// TODO: config option for setting logfile perms
 	// TODO: need to close this file on exit
-	log, err := os.Open(logfile, os.O_WRONLY|os.O_CREAT|os.O_APPEND, 777)
+	log, err := os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 777)
 	if err != nil {
 		return nil, err
 	}
