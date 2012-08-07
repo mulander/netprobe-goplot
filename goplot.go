@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"expvar"
 	"flag"
 	"fmt"
@@ -57,7 +58,7 @@ func main() {
 
 	configJsonBytes, err := io.ReadFile(*configFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to read %s: %s\n", *configFlag, err.String())
+		fmt.Fprintf(os.Stderr, "failed to read %s: %s\n", *configFlag, err.Error())
 		os.Exit(EXIT_NO_CONFIG)
 	}
 	// split the buffer into an array of strings, one per source line
@@ -86,7 +87,7 @@ func main() {
 	// in order
 	err = http.ListenAndServe(config.Address, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ListenAndServe on %s got: %s\n", config.Address, err.String())
+		fmt.Fprintf(os.Stderr, "ListenAndServe on %s got: %s\n", config.Address, err.Error())
 		os.Exit(EXIT_CANT_LISTEN)
 	}
 }
@@ -133,7 +134,7 @@ func dataSampleProcess(src string) (results string) {
 	const MAXLINES = 1000000
 
 	// split the buffer into an array of strings, one per source line
-	srcLines := strings.Split(src, "\n", MAXLINES)
+	srcLines := strings.SplitN(src, "\n", MAXLINES)
 
 	lineCount := len(srcLines)
 	series := vector.New(0)
@@ -157,9 +158,9 @@ func dataSampleProcess(src string) (results string) {
 	return jsonStr
 }
 
-func parseLine(coords string) (p Point, err os.Error) {
+func parseLine(coords string) (p Point, err error) {
 	if len(coords) > 0 {
-		coordsAr := strings.Split(strings.TrimSpace(coords), ",", 3)
+		coordsAr := strings.SplitN(strings.TrimSpace(coords), ",", 3)
 		if len(coordsAr) > 1 {
 			// ignore conversion errors
 			p.x, err = strconv.Atof(coordsAr[0])
@@ -168,7 +169,7 @@ func parseLine(coords string) (p Point, err os.Error) {
 			}
 		}
 	} else {
-		err = os.NewError("parseLine: No data")
+		err = errors.New("parseLine: No data")
 	}
 	return p, err
 }
