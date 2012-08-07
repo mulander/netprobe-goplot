@@ -7,14 +7,13 @@ import (
   "fmt";
   "strings";
   "strconv";
-  "container/vector";
   "math";
-  "http";
+  "net/http";
   "flag";
   "expvar";
-  "json";
-  . "./constants";
-  _ "./httplog"
+  "encoding/json";
+  . "goplot/constants";
+  _ "goplot/httplog"
 )
 
 type Point struct {
