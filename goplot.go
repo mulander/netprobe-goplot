@@ -83,10 +83,10 @@ func main() {
 	fmt.Printf("%s\n", config.Address)
 	fmt.Printf("%s\n", config.CustomLog)
 
-	demoPoint := Point{X: 0.0, Y: 0.0}
+	demoPoint := &Point{X: 0.0, Y: 0.0}
 
-	http.Handle("/point", &demoPoint)
-	expvar.Publish("point", &demoPoint)
+	http.Handle("/point", demoPoint)
+	expvar.Publish("point", demoPoint)
 
 	http.Handle("/goplot/viz", http.HandlerFunc(dataSampleServer))
 	// serve our own files instead of using http.FileServer for very tight access control
