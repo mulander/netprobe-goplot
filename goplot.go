@@ -1,13 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"expvar"
 	"flag"
 	"fmt"
 	. "goplot/constants"
 	_ "goplot/httplog"
+	"io"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -137,18 +138,21 @@ func dataSampleServer(c http.ResponseWriter, req *http.Request) {
 // processes data samples, sends back data to plot along with regression lines
 func dataSampleProcess(src string) (results string) {
 	const MAXLINES = 1000000
-
-	// split the buffer into an array of strings, one per source line
-	srcLines := strings.SplitN(src, "\n", MAXLINES)
-
-	lineCount := len(srcLines)
 	series := make([]Point, 0)
 
-	for ix := 0; ix < lineCount; ix++ {
-		stmp, err := parseLine(srcLines[ix])
-		if err == nil {
-			series = append(series, stmp)
+	csvReader := csv.NewReader(strings.NewReader(src))
+	for i := 1; i < MAXLINES; i++ {
+		record, err := csvReader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			fmt.Println(err)
+			return
 		}
+		// ignore conversion errors
+		x, _ := strconv.ParseFloat(record[0], 64)
+		y, _ := strconv.ParseFloat(record[1], 64)
+		series = append(series, Point{X: x, Y: y})
 	}
 
 	slope, intercept, stdError, correlation := linearRegression(series)
@@ -166,22 +170,6 @@ func dataSampleProcess(src string) (results string) {
 	}
 
 	return string(jsonDataSample)
-}
-
-func parseLine(coords string) (p Point, err error) {
-	if len(coords) > 0 {
-		coordsAr := strings.SplitN(strings.TrimSpace(coords), ",", 3)
-		if len(coordsAr) > 1 {
-			// ignore conversion errors
-			p.X, err = strconv.ParseFloat(coordsAr[0], 64)
-			if err == nil {
-				p.Y, err = strconv.ParseFloat(coordsAr[1], 64)
-			}
-		}
-	} else {
-		err = errors.New("parseLine: No data")
-	}
-	return p, err
 }
 
 // perform linear regression on the data series
