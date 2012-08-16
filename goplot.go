@@ -17,8 +17,20 @@ import (
 )
 
 type Point struct {
-	x float64
-	y float64
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type RegressionLine struct {
+	Slope       float64 `json:"slope"`
+	Intercept   float64 `json:"intercept"`
+	StdError    float64 `json:"stdError"`
+	Correlation float64 `json:"correlation"`
+}
+
+type DataSample struct {
+	Series         []Point        `json:"series"`
+	RegressionLine RegressionLine `json:"regressionLine"`
 }
 
 type Config struct {
@@ -27,17 +39,17 @@ type Config struct {
 	LogFormat []string
 }
 
-func (pt *Point) String() string { return fmt.Sprintf("(%f,%f)", pt.x, pt.y) }
+func (pt *Point) String() string { return fmt.Sprintf("(%f,%f)", pt.X, pt.Y) }
 
 func (pt *Point) ServeHTTP(c http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
-		pt.x++
+		pt.X++
 	case "POST":
-		pt.x, _ = strconv.ParseFloat(req.FormValue("x"), 64)
-		pt.y, _ = strconv.ParseFloat(req.FormValue("y"), 64)
+		pt.X, _ = strconv.ParseFloat(req.FormValue("x"), 64)
+		pt.Y, _ = strconv.ParseFloat(req.FormValue("y"), 64)
 	}
-	fmt.Fprintf(c, "point is (%f,%f)\n", pt.x, pt.y)
+	fmt.Fprintf(c, "point is (%f,%f)\n", pt.X, pt.Y)
 }
 
 var configFlag = flag.String("c", "server.conf", "Config file name")
@@ -71,7 +83,7 @@ func main() {
 	fmt.Printf("%s\n", config.Address)
 	fmt.Printf("%s\n", config.CustomLog)
 
-	demoPoint := Point{ x : 0.0, y : 0.0}
+	demoPoint := Point{X: 0.0, Y: 0.0}
 
 	http.Handle("/point", &demoPoint)
 	expvar.Publish("point", &demoPoint)
@@ -99,7 +111,7 @@ func fileServe(c http.ResponseWriter, req *http.Request) {
 
 // Send the given error code.
 func serveError(c http.ResponseWriter, req *http.Request, code int) {
-  c.WriteHeader(code)
+	c.WriteHeader(code)
 }
 
 // processes data samples, sends back data to plot along with regression lines
@@ -116,7 +128,7 @@ func dataSampleServer(c http.ResponseWriter, req *http.Request) {
 		src := req.FormValue("dataseries")
 		result := dataSampleProcess(src)
 		// send the response
-    fmt.Fprint(c,result)
+		fmt.Fprint(c, result)
 	default:
 		serveError(c, req, http.StatusMethodNotAllowed)
 	}
@@ -135,20 +147,25 @@ func dataSampleProcess(src string) (results string) {
 	for ix := 0; ix < lineCount; ix++ {
 		stmp, err := parseLine(srcLines[ix])
 		if err == nil {
-      series = append(series, stmp)
+			series = append(series, stmp)
 		}
 	}
-	jsonStr := "{series:["
-	for ix := 0; ix < len(series); ix++ {
-		jsonStr += "{x:" + strconv.FormatFloat(series[ix].x, 'f', 3, 64) + ",y:" + strconv.FormatFloat(series[ix].y, 'f', 3, 64) + "},"
-	}
-	jsonStr += "],\n"
 
 	slope, intercept, stdError, correlation := linearRegression(series)
-	jsonStr += fmt.Sprintf("regressionLine:{slope:%f,intercept:%f,stdError:%f,correlation:%f},", slope, intercept, stdError, correlation)
-	jsonStr += "}"
 
-	return jsonStr
+	dataSample := &DataSample{Series: series,
+		RegressionLine: RegressionLine{Slope: slope,
+			Intercept:   intercept,
+			StdError:    stdError,
+			Correlation: correlation}}
+
+	jsonDataSample, err := json.Marshal(dataSample)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	return string(jsonDataSample)
 }
 
 func parseLine(coords string) (p Point, err error) {
@@ -156,9 +173,9 @@ func parseLine(coords string) (p Point, err error) {
 		coordsAr := strings.SplitN(strings.TrimSpace(coords), ",", 3)
 		if len(coordsAr) > 1 {
 			// ignore conversion errors
-			p.x, err = strconv.ParseFloat(coordsAr[0], 64)
+			p.X, err = strconv.ParseFloat(coordsAr[0], 64)
 			if err == nil {
-				p.y, err = strconv.ParseFloat(coordsAr[1], 64)
+				p.Y, err = strconv.ParseFloat(coordsAr[1], 64)
 			}
 		}
 	} else {
@@ -177,8 +194,8 @@ func linearRegression(series []Point) (slope float64, intercept float64, stdErro
 	sumxy := 0.0
 	sumx2 := 0.0
 	for ix := 0; ix < len; ix++ {
-		x := series[ix].x
-		y := series[ix].y
+		x := series[ix].X
+		y := series[ix].Y
 		sumx += x
 		sumy += y
 		sumxy += x * y
@@ -192,8 +209,8 @@ func linearRegression(series []Point) (slope float64, intercept float64, stdErro
 	st := 0.0
 	sr := 0.0
 	for ix := 0; ix < len; ix++ {
-		x := series[ix].x
-		y := series[ix].y
+		x := series[ix].X
+		y := series[ix].Y
 		st += (y - ymean) * (y - ymean)
 		// guessing the compiler sees this is constant & does sth faster than exponentiation
 		sr += (y - (slope*x - intercept)) * (y - (slope*x - intercept))
