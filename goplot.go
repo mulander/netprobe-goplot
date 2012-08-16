@@ -71,12 +71,10 @@ func main() {
 	fmt.Printf("%s\n", config.Address)
 	fmt.Printf("%s\n", config.CustomLog)
 
-	demoPoint := new(Point)
-	demoPoint.x = 0.0
-	demoPoint.y = 0.0
+	demoPoint := Point{ x : 0.0, y : 0.0}
 
-	http.Handle("/point", demoPoint)
-	expvar.Publish("point", demoPoint)
+	http.Handle("/point", &demoPoint)
+	expvar.Publish("point", &demoPoint)
 
 	http.Handle("/goplot/viz", http.HandlerFunc(dataSampleServer))
 	// serve our own files instead of using http.FileServer for very tight access control
@@ -142,7 +140,7 @@ func dataSampleProcess(src string) (results string) {
 	}
 	jsonStr := "{series:["
 	for ix := 0; ix < len(series); ix++ {
-		jsonStr += "{x:" + strconv.FormatFloat(Point(series[ix]).x, 'f', 3, 64) + ",y:" + strconv.FormatFloat(Point(series[ix]).y, 'f', 3, 64) + "},"
+		jsonStr += "{x:" + strconv.FormatFloat(series[ix].x, 'f', 3, 64) + ",y:" + strconv.FormatFloat(series[ix].y, 'f', 3, 64) + "},"
 	}
 	jsonStr += "],\n"
 
@@ -179,8 +177,8 @@ func linearRegression(series []Point) (slope float64, intercept float64, stdErro
 	sumxy := 0.0
 	sumx2 := 0.0
 	for ix := 0; ix < len; ix++ {
-		x := Point(series[ix]).x
-		y := Point(series[ix]).y
+		x := series[ix].x
+		y := series[ix].y
 		sumx += x
 		sumy += y
 		sumxy += x * y
@@ -194,8 +192,8 @@ func linearRegression(series []Point) (slope float64, intercept float64, stdErro
 	st := 0.0
 	sr := 0.0
 	for ix := 0; ix < len; ix++ {
-		x := Point(series[ix]).x
-		y := Point(series[ix]).y
+		x := series[ix].x
+		y := series[ix].y
 		st += (y - ymean) * (y - ymean)
 		// guessing the compiler sees this is constant & does sth faster than exponentiation
 		sr += (y - (slope*x - intercept)) * (y - (slope*x - intercept))
